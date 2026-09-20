@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: account-service-config
+data:
+  # sobrescrevem as configurações do application-local.yaml (variável de ambiente tem prioridade)
+  SPRING_MONGODB_URI: "mongodb://admin:admin123@mongodb:27017/account_db?authSource=admin"
+  SPRING_RABBITMQ_HOST: "rabbitmq"
+  OTLP_TRACING_ENDPOINT: "http://host.minikube.internal:4318/v1/traces"
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: account-service
+  template:
+    metadata:
+      labels:
+        app: account-service
+    spec:
+      containers:
+        - name: account-service
+          image: account-service:1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: account-service-config
+          # o HPA calcula a % de CPU em relação a este "requests"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          # dá até ~150 s para a aplicação subir antes de qualquer outra verificação
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+spec:
+  selector:
+    app: account-service
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# Escalonamento automático: entre 1 e 3 réplicas, mirando 50% de CPU (em relação ao "requests" de 250m)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: account-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: account-service
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+  behavior:
+    scaleDown:
+      # por padrão o HPA espera 5 min antes de reduzir; 60 s deixa o experimento mais curto
+      stabilizationWindowSeconds: 60

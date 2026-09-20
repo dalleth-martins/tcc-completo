@@ -1,0 +1,19 @@
+# Mongo e RabbitMQ continuam rodando FORA do cluster (docker compose em account-service/infra).
+# Estes dois Services fazem o nome "mongodb" e "rabbitmq" apontar, de dentro do cluster,
+# para a máquina hospedeira (host.minikube.internal). Assim os serviços usam os mesmos nomes
+# que já conhecem, e o replica set do Mongo (cujo membro se chama "mongodb:27017") continua funcionando.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+spec:
+  type: ExternalName
+  externalName: host.minikube.internal
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+spec:
+  type: ExternalName
+  externalName: host.minikube.internal

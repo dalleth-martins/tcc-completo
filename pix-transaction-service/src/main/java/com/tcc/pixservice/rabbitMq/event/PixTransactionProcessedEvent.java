@@ -1,0 +1,18 @@
+package com.tcc.pixservice.rabbitMq.event;
+
+import com.tcc.pixservice.enums.PixTransactionStatus;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Data
+public class PixTransactionProcessedEvent {
+    private String transactionId;
+    private String idempotencyKey;
+    private PixTransactionStatus status;
+    private String message;
+}
