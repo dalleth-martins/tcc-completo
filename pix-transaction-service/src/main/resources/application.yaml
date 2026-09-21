@@ -6,6 +6,11 @@ spring:
     default: local
   application:
     name: pix-service
+  data:
+    mongodb:
+      # cria os índices declarados com @Indexed (inclusive os únicos, que garantem a idempotência)
+      # - desde o Spring Data MongoDB 3.0 isso vem desligado por padrão
+      auto-index-creation: true
   rabbitmq:
     listener:
       simple:
